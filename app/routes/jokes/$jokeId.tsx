@@ -1,86 +1,61 @@
-import type {
-  LoaderFunction,
-  ActionFunction,
-  MetaFunction
-} from "remix";
-import {
-  Link,
-  useLoaderData,
-  useCatch,
-  redirect,
-  useParams
-} from "remix";
+import type { LoaderFunction, ActionFunction, MetaFunction } from "remix";
+import { Link, useLoaderData, useCatch, redirect, useParams } from "remix";
 import type { Joke } from "@prisma/client";
 import { db } from "~/utils/db.server";
-import {
-  getUserId,
-  requireUserId
-} from "~/utils/session.server";
+import { getUserId, requireUserId } from "~/utils/session.server";
 import { JokeDisplay } from "~/components/joke";
 
 export const meta: MetaFunction = ({
-  data
+  data,
 }: {
   data: LoaderData | undefined;
 }) => {
   if (!data) {
     return {
       title: "No joke",
-      description: "No joke found"
+      description: "No joke found",
     };
   }
   return {
-    title: `"${data.joke.name}" joke`,
-    description: `Enjoy the "${data.joke.name}" joke and much more`
+    title: `${data.joke.name} joke`,
+    description: `Enjoy the ${data.joke.name} joke and much more`,
   };
 };
 
 type LoaderData = { joke: Joke; isOwner: boolean };
 
-export const loader: LoaderFunction = async ({
-  request,
-  params
-}) => {
+export const loader: LoaderFunction = async ({ request, params }) => {
   const userId = await getUserId(request);
 
   const joke = await db.joke.findUnique({
-    where: { id: params.jokeId }
+    where: { id: params.jokeId },
   });
   if (!joke) {
     throw new Response("What a joke! Not found.", {
-      status: 404
+      status: 404,
     });
   }
   const data: LoaderData = {
     joke,
-    isOwner: userId === joke.jokesterId
+    isOwner: userId === joke.jokesterId,
   };
   return data;
 };
 
-export const action: ActionFunction = async ({
-  request,
-  params
-}) => {
+export const action: ActionFunction = async ({ request, params }) => {
   const form = await request.formData();
   if (form.get("_method") === "delete") {
     const userId = await requireUserId(request);
     const joke = await db.joke.findUnique({
-      where: { id: params.jokeId }
+      where: { id: params.jokeId },
     });
     if (!joke) {
-      throw new Response(
-        "Can't delete what does not exist",
-        { status: 404 }
-      );
+      throw new Response("Can't delete what does not exist", { status: 404 });
     }
     if (joke.jokesterId !== userId) {
-      throw new Response(
-        "Pssh, nice try. That's not your joke",
-        {
-          status: 401
-        }
-      );
+      throw new Response("Pssh, nice try. That's not your joke", {
+        status: 401,
+      });
     }
     await db.joke.delete({ where: { id: params.jokeId } });
     return redirect("/jokes");
@@ -90,9 +65,7 @@ export const action: ActionFunction = async ({
 export default function JokeRoute() {
   const data = useLoaderData<LoaderData>();
 
-  return (
-    <JokeDisplay joke={data.joke} isOwner={data.isOwner} />
-  );
+  return <JokeDisplay joke={data.joke} isOwner={data.isOwner} />;
 }
 
 export function CatchBoundary() {
